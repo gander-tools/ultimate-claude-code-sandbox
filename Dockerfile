@@ -1,9 +1,7 @@
 # Ultimate Claude Code Sandbox - Maximum Power, Maximum Safety
 FROM node:20
 
-# Build-time arguments for embedding API credentials and user info (optional)
-ARG ANTHROPIC_API_KEY=""
-ARG ANTHROPIC_MODEL="claude-sonnet-4-20250514"
+# Build-time arguments for user info and optional tokens
 ARG GH_TOKEN=""
 ARG USER_UID="1000"
 ARG USER_GID="1000"
@@ -28,6 +26,7 @@ RUN apt-get update && \
     bzip2 \
     xz-utils \
     p7zip-full \
+    rsync \
     make \
     build-essential \
     python3 \
@@ -60,7 +59,8 @@ RUN curl -fsSL https://deno.land/install.sh | sh \
 # Install Claude Code CLI (official installation)
 # Note: The script automatically detects platform and downloads appropriate binary
 RUN curl -fsSL https://claude.ai/install.sh | bash \
-    && chmod +x /usr/local/bin/claude 2>/dev/null || true
+    && cp ~/.local/bin/claude /usr/local/bin/claude \
+    && chmod +x /usr/local/bin/claude
 
 # Create entrypoint script for dynamic user creation
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -89,9 +89,7 @@ RUN echo "*.tmp\nexperiments/\ntest-outputs/\ntemp-files/\n.env.local\nnode_modu
 ENV CLAUDE_CONFIG_DIR=/sandbox/.claude
 ENV NODE_ENV=development
 
-# Set embedded credentials and user info as environment variables (if provided during build)
-ENV ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-ENV ANTHROPIC_MODEL=${ANTHROPIC_MODEL}
+# Set user info and optional tokens as environment variables
 ENV GH_TOKEN=${GH_TOKEN}
 ENV USER_UID=${USER_UID}
 ENV USER_GID=${USER_GID}
