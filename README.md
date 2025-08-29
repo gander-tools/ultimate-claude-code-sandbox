@@ -25,29 +25,54 @@ docker build . \
 **Standard command with browser login:**
 ```bash
 docker run --rm -it \
-  --memory=12g \
-  --memory-swap=12g \
+  --memory=16g \
+  --memory-swap=16g \
   --ulimit nofile=65536:65536 \
   --tmpfs /tmp:rw,noexec,nosuid,size=1g \
   -v "$(pwd):/sandbox:rw" \
-  -v "$HOME/.claude:/home/claude/.claude:rw" \
+  -v "$HOME/.claude:/home/claude/.claude:ro" \
   -p 3000:3000 -p 8000:8000 -p 8080:8080 -p 5173:5173 \
   claude-sandbox-personal claude-safe
 ```
 
-**Note**: Claude config is mounted as `rw` to save authentication tokens after browser login.
+**With GitHub token (for git operations):**
+```bash
+docker run --rm -it \
+  --memory=16g \
+  --memory-swap=16g \
+  --ulimit nofile=65536:65536 \
+  --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+  -e GH_TOKEN="gho_************************************" \
+  -v "$(pwd):/sandbox:rw" \
+  -v "$HOME/.claude:/home/claude/.claude:ro" \
+  -p 3000:3000 -p 8000:8000 -p 8080:8080 -p 5173:5173 \
+  claude-sandbox-personal claude-safe
+```
+
+**Note**: Claude config is mounted as `ro` for security. Authentication tokens are saved on the host system.
 
 ### 3. Create Alias (Recommended)
 
 #### Bash/Zsh (~/.bashrc or ~/.zshrc):
 ```bash
 alias claude-here='docker run --rm -it \
-  --memory=12g \
-  --memory-swap=12g \
+  --memory=16g \
+  --memory-swap=16g \
   --ulimit nofile=65536:65536 \
   --tmpfs /tmp:rw,noexec,nosuid,size=1g \
   -v "$(pwd):/sandbox:rw" \
-  -v "$HOME/.claude:/home/claude/.claude:rw" \
+  -v "$HOME/.claude:/home/claude/.claude:ro" \
+  -p 3000:3000 -p 8000:8000 -p 8080:8080 -p 5173:5173 \
+  claude-sandbox-personal claude-safe'
+
+alias claude-here-gh='docker run --rm -it \
+  --memory=16g \
+  --memory-swap=16g \
+  --ulimit nofile=65536:65536 \
+  --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+  -e GH_TOKEN="$GH_TOKEN" \
+  -v "$(pwd):/sandbox:rw" \
+  -v "$HOME/.claude:/home/claude/.claude:ro" \
   -p 3000:3000 -p 8000:8000 -p 8080:8080 -p 5173:5173 \
   claude-sandbox-personal claude-safe'
 ```
@@ -55,22 +80,41 @@ alias claude-here='docker run --rm -it \
 #### Fish (~/.config/fish/config.fish):
 ```fish
 alias --save claude-here='docker run --rm -it \
-  --memory=12g \
-  --memory-swap=12g \
+  --memory=16g \
+  --memory-swap=16g \
   --ulimit nofile=65536:65536 \
   --tmpfs /tmp:rw,noexec,nosuid,size=1g \
   -v (pwd):/sandbox:rw \
-  -v $HOME/.claude:/home/claude/.claude:rw \
+  -v $HOME/.claude:/home/claude/.claude:ro \
+  -p 3000:3000 -p 8000:8000 -p 8080:8080 -p 5173:5173 \
+  claude-sandbox-personal claude-safe'
+
+alias --save claude-here-gh='docker run --rm -it \
+  --memory=16g \
+  --memory-swap=16g \
+  --ulimit nofile=65536:65536 \
+  --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+  -e GH_TOKEN="$GH_TOKEN" \
+  -v (pwd):/sandbox:rw \
+  -v $HOME/.claude:/home/claude/.claude:ro \
   -p 3000:3000 -p 8000:8000 -p 8080:8080 -p 5173:5173 \
   claude-sandbox-personal claude-safe'
 ```
 
-Then use: `cd ~/any-project && claude-here`
+**Usage:**
+```bash
+# Standard usage
+cd ~/any-project && claude-here
+
+# With GitHub token (for git operations)
+export GH_TOKEN="gho_************************************"
+cd ~/any-project && claude-here-gh
+```
 
 ## Features
 
 ### ✅ **ENOMEM Problem Solved**
-- **12GB Memory Limit** - Prevents out of memory errors
+- **16GB Memory Limit** - Prevents out of memory errors
 - **Polling-based File Watching** - No more inotify kernel memory issues  
 - **Node.js Heap Optimization** - 3GB heap size for large projects
 - **System Limits** - Optimized file descriptors and tmpfs
@@ -93,26 +137,27 @@ Then use: `cd ~/any-project && claude-here`
 ### Memory Issues
 If you still encounter ENOMEM errors:
 
-1. **Increase memory**: Change `--memory=12g` to `--memory=16g`
+1. **Increase memory**: Change `--memory=16g` to `--memory=20g`
 2. **Check system memory**: `free -h` 
 3. **Clear Docker cache**: `docker system prune`
 4. **System-wide fix**: `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
 
-### API Key Issues
-If Claude asks for API key despite having embedded credentials:
+### Authentication Issues
+If Claude has authentication problems:
 
-1. **Use explicit API key**: Add `-e ANTHROPIC_API_KEY="your-key"` to docker command
+1. **Browser login**: Claude will prompt for browser authentication on first use
 2. **Check credentials**: Ensure `~/.claude/.credentials.json` exists and is readable
 3. **Token expiration**: OAuth tokens may expire, requiring re-authentication
 4. **Network issues**: Container may not be able to validate tokens online
 
-**Quick fix - use this command:**
+**Browser login workflow:**
 ```bash
+# Run Claude and follow browser login prompts
 docker run --rm -it \
-  --memory=12g \
-  --memory-swap=12g \
-  -e ANTHROPIC_API_KEY="sk-ant-api-03-your-actual-key-here" \
+  --memory=16g \
+  --memory-swap=16g \
   -v "$(pwd):/sandbox:rw" \
+  -v "$HOME/.claude:/home/claude/.claude:ro" \
   claude-sandbox-personal claude-safe
 ```
 
@@ -122,25 +167,16 @@ docker run --rm -it \
 - Review container logs for UID/GID conflict messages
 
 ### Build Issues  
-- Ensure ANTHROPIC_API_KEY is valid and has sufficient credits
-- Verify Docker has at least 12GB RAM available
-- Check that GH_TOKEN has proper repository permissions
+- Verify Docker has at least 16GB RAM available
+- Check that GH_TOKEN has proper repository permissions (optional)
+- Ensure sufficient disk space for Docker image build
 
 ## Environment Details
-
-### Container Architecture
-```
-/sandbox/                           # Your project (mounted from current directory)
-├── .claude/                       # Claude configuration (copied from host)
-├── .git/                          # Git repository (auto-initialized)
-└── [your-project-files]           # All your development files
-```
 
 ### Environment Variables
 - `NODE_OPTIONS="--max-old-space-size=3072"` - Node.js memory optimization
 - `CHOKIDAR_USEPOLLING=true` - Polling-based file watching (prevents ENOMEM)
 - `CHOKIDAR_INTERVAL=1000` - File polling interval (1 second)
-- `ANTHROPIC_API_KEY` - Your Claude API key (embedded during build)
 - `ANTHROPIC_MODEL` - Default model (claude-sonnet-4-20250514)
 
 ### Available Commands Inside Container
@@ -158,10 +194,10 @@ git status                          # Git operations
 
 ## Requirements
 
-- **Docker**: Latest version with at least 12GB RAM allocated
-- **System Memory**: Minimum 16GB RAM recommended
+- **Docker**: Latest version with at least 16GB RAM allocated
+- **System Memory**: Minimum 20GB RAM recommended
 - **Disk Space**: 3GB free space for Docker image
-- **API Keys**: Valid Anthropic API key with credits
+- **Authentication**: Internet access for Claude browser login
 - **Network**: Internet access for Claude API calls
 
 ---
