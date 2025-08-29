@@ -45,14 +45,28 @@ if [ ! -d "$USER_HOME" ]; then
     mkdir -p "$USER_HOME"
 fi
 
+# Create necessary directories with proper permissions
+mkdir -p "$USER_HOME/.config"
+mkdir -p "$USER_HOME/.config/gh"
+mkdir -p "$USER_HOME/.cache"
+mkdir -p "$USER_HOME/.local"
+mkdir -p "$USER_HOME/.local/share"
+mkdir -p "$USER_HOME/.local/bin"
+
 # Get the actual group ID for the user
 ACTUAL_GID=$(getent passwd "$USERNAME" | cut -d: -f4)
 
 # Set up sandbox permissions
 chown -R "$USER_UID:$ACTUAL_GID" /sandbox
-# Only chown user home if it's not a read-only mount
-# Skip chown on user home to avoid conflicts with mounted .claude directory
-echo "Skipping chown on $USER_HOME to avoid conflicts with mounted directories"
+
+# Set permissions on user directories (avoiding conflicts with mounted .claude)
+echo "Setting up user directory permissions..."
+chown -R "$USER_UID:$ACTUAL_GID" "$USER_HOME/.config" 2>/dev/null || true
+chown -R "$USER_UID:$ACTUAL_GID" "$USER_HOME/.cache" 2>/dev/null || true
+chown -R "$USER_UID:$ACTUAL_GID" "$USER_HOME/.local" 2>/dev/null || true
+chmod -R 755 "$USER_HOME/.config" 2>/dev/null || true
+chmod -R 755 "$USER_HOME/.cache" 2>/dev/null || true
+chmod -R 755 "$USER_HOME/.local" 2>/dev/null || true
 
 # Create .claude directory in sandbox with proper permissions
 mkdir -p /sandbox/.claude
