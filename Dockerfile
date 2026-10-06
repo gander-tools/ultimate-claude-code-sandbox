@@ -1,5 +1,5 @@
 # Ultimate Claude Code Sandbox - Maximum Power, Maximum Safety
-FROM node:20
+FROM node:24
 
 # Build-time arguments for user info and optional tokens
 ARG GH_TOKEN=""
